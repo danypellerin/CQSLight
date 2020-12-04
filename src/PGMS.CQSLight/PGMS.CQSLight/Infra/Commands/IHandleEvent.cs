@@ -1,8 +1,8 @@
-﻿using System;
-using System.Text;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using PGMS.CQSLight.Extensions;
 using PGMS.Data.Services;
+using System;
+using System.Text;
 
 namespace PGMS.CQSLight.Infra.Commands
 {
@@ -31,9 +31,8 @@ namespace PGMS.CQSLight.Infra.Commands
             catch (Exception ex)
             {
                 var sb = new StringBuilder();
-                sb.AppendLine($"Transaction commit failed on Handling {typeof(T).Name} - Hanlder : {this.GetType().FullName} - {ex.GetErrorDetails()}");
+                sb.AppendLine($"Transaction commit failed on Handling {typeof(T).Name} - Handler : {GetType().FullName} - {ex.GetErrorDetails()}");
                 logger.LogWarning(sb.ToString());
-
                 throw;
             }
         }

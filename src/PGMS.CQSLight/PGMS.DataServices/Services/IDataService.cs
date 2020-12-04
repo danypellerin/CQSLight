@@ -2,7 +2,7 @@
 
 namespace PGMS.Data.Services
 {
-	public interface IDataService
+    public interface IDataService
     {
         long GenerateId();
     }

@@ -1,36 +1,28 @@
-﻿using System;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using PGMS.CQSLight.Extensions;
+using System;
 
 namespace PGMS.CQSLight.Infra.Commands
 {
     public interface IEvent : IMessage
     {
-	    Guid AggregateId { get; set; }
+        Guid AggregateId { get; set; }
         Guid Id { get; }
-        string ByUser { get; set; }        
+        string ByUser { get; set; }
     }
 
     public interface IDomainEvent : IEvent
     {
-        
-        
-        Guid Id { get; }
-        string ByUser { get; set; }
-
         long Timestamp { get; set; }
 
-	    string GetJSonSerialisation();
+        string GetJSonSerialisation();
     }
 
     public abstract class DomainEvent<T> : Event, IEquatable<DomainEvent<T>>, IDomainEvent
     {
-        protected DomainEvent(T parameters)
-        {
-            Parameters = parameters;
-        }
-
         public T Parameters { get; set; }
+
+        protected DomainEvent(T parameters) => Parameters = parameters;
 
         public string GetJSonSerialisation()
         {
@@ -39,16 +31,16 @@ namespace PGMS.CQSLight.Infra.Commands
 
         public bool Equals(DomainEvent<T> other)
         {
-            if (ReferenceEquals(null, other)) return false;
+            if (other is null) return false;
             if (ReferenceEquals(this, other)) return true;
             return base.Equals(other) && Equals(Parameters, other.Parameters);
         }
 
         public override bool Equals(object obj)
         {
-            if (ReferenceEquals(null, obj)) return false;
+            if (obj is null) return false;
             if (ReferenceEquals(this, obj)) return true;
-            if (obj.GetType() != this.GetType()) return false;
+            if (obj.GetType() != GetType()) return false;
             return Equals((DomainEvent<T>)obj);
         }
 
@@ -73,27 +65,22 @@ namespace PGMS.CQSLight.Infra.Commands
         public Guid Id { get; private set; }
         public string ByUser { get; set; }
         public long Timestamp { get; set; }
-
         public Guid AggregateId { get; set; }
 
         public bool Equals(Event other)
         {
-            if (ReferenceEquals(null, other)) return false;
+            if (other is null) return false;
             if (ReferenceEquals(this, other)) return true;
             return other.Id.Equals(Id);
         }
 
         public override bool Equals(object obj)
         {
-            if (ReferenceEquals(null, obj)) return false;
+            if (obj is null) return false;
             if (ReferenceEquals(this, obj)) return true;
-            if (obj is Event) return Equals((Event)obj);
-            return false;
+            return obj is Event ? Equals((Event)obj) : false;
         }
 
-        public override int GetHashCode()
-        {
-            return Id.GetHashCode();
-        }
+        public override int GetHashCode() => Id.GetHashCode();
     }
 }

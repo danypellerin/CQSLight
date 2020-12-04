@@ -8,36 +8,32 @@ namespace PGMS.DataProvider.EFCore.Services
         {
             var optionsBuilder = new DbContextOptionsBuilder<T>();
             optionsBuilder.UseSqlServer(connectionString);
-
             var context = CreateContext(optionsBuilder.Options);
             //Ensure database creation
             //context.Database.EnsureCreated();
-
             return context;
         }
 
         public abstract T CreateContext(DbContextOptions<T> options);
     }
 
-    
-
     public interface IConnectionStringProvider
     {
-	    string GetConnectionString();
+        string GetConnectionString();
     }
 
     public class ConnectionStringProvider : IConnectionStringProvider
     {
-	    private readonly string connectionString;
+        private readonly string connectionString;
 
-	    public ConnectionStringProvider(string connectionString)
-	    {
-		    this.connectionString = connectionString;
-	    }
+        public ConnectionStringProvider(string connectionString)
+        {
+            this.connectionString = connectionString;
+        }
 
-	    public string GetConnectionString()
-	    {
-		    return connectionString;
-	    }
+        public string GetConnectionString()
+        {
+            return connectionString;
+        }
     }
 }

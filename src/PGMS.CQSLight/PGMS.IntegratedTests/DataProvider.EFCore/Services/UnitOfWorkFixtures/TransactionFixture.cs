@@ -1,212 +1,184 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Runtime.InteropServices.ComTypes;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using NUnit.Framework;
 using PGMS.CQSLight.Extensions;
 using PGMS.Data.Services;
 using PGMS.DataProvider.EFCore.Contexts;
 using PGMS.DataProvider.EFCore.Services;
+using System;
 
 namespace PGMS.IntegratedTests.DataProvider.EFCore.Services.UnitOfWorkFixtures
 {
-	[TestFixture]
-	public class TransactionFixture
-	{
-		private IEntityRepository entityRepository;
-		private string connectionString = "Server=localhost;Database=SampleProject;Trusted_Connection=True;ConnectRetryCount=0";
+    [TestFixture]
+    public class TransactionFixture
+    {
+        private IEntityRepository entityRepository;
+        private readonly string connectionString = "Server=localhost;Database=SampleProject;Trusted_Connection=True;ConnectRetryCount=0";
 
-		[SetUp]
-		public void SetUp()
-		{
-			entityRepository = new BaseEntityRepository<BaseDbContext>(new ConnectionStringProvider(connectionString), new IntegratedTestContextFactory());
-		}
+        [SetUp]
+        public void SetUp()
+        {
+            entityRepository = new BaseEntityRepository<BaseDbContext>(new ConnectionStringProvider(connectionString), new IntegratedTestContextFactory());
+        }
 
-		[Test]
-		public void CheckTransactionNewInsertedItem()
-		{
-			var id = DateTime.Now.ToEpoch();
-			var idParametres = $"IntegratedTest-{id}";
+        [Test]
+        public void CheckTransactionNewInsertedItem()
+        {
+            var id = DateTime.Now.ToEpoch();
+            var idParameters = $"IntegratedTest-{id}";
 
-			using (var unitOfWork = entityRepository.GetUnitOfWork())
-			{
-				using (var transaction = unitOfWork.GetTransaction())
-				{
-					entityRepository.InsertOperation(unitOfWork, new DbSequenceHiLo{id_parametres = idParametres, intval = 1});
+            using (var unitOfWork = entityRepository.GetUnitOfWork())
+            {
+                using var transaction = unitOfWork.GetTransaction();
+                entityRepository.InsertOperation(unitOfWork, new DbSequenceHiLo { IdParameters = idParameters, IntVal = 1 });
+                var value = entityRepository.FindFirstOperation<DbSequenceHiLo>(unitOfWork, x => x.IdParameters == idParameters);
+                Assert.That(value, Is.Not.Null);
+                transaction.Rollback();
+            }
 
-					var value = entityRepository.FindFirstOperation<DbSequenceHiLo>(unitOfWork, x => x.id_parametres == idParametres);
-					Assert.That(value, Is.Not.Null);
+            var result = entityRepository.FindFirst<DbSequenceHiLo>(x => x.IdParameters == idParameters);
+            Assert.That(result, Is.Null);
+        }
 
-					transaction.Rollback();
-				}
-			}
+        [Test]
+        public void CheckTransactionNewInsertedItemPersisted()
+        {
+            var id = DateTime.Now.ToEpoch();
+            var idParameters = $"IntegratedTest-Persisted-{id}";
 
-			var result = entityRepository.FindFirst<DbSequenceHiLo>(x => x.id_parametres == idParametres);
+            using (var unitOfWork = entityRepository.GetUnitOfWork())
+            {
+                using var transaction = unitOfWork.GetTransaction();
+                entityRepository.InsertOperation(unitOfWork, new DbSequenceHiLo { IdParameters = idParameters, IntVal = 1 });
+                var value = entityRepository.FindFirstOperation<DbSequenceHiLo>(unitOfWork, x => x.IdParameters == idParameters);
+                Assert.That(value, Is.Not.Null);
+                transaction.Commit();
+            }
 
-			Assert.That(result, Is.Null);
-		}
+            var result = entityRepository.FindFirst<DbSequenceHiLo>(x => x.IdParameters == idParameters);
+            Assert.That(result, Is.Not.Null);
+        }
 
-		[Test]
-		public void CheckTransactionNewInsertedItemPersisted()
-		{
-			var id = DateTime.Now.ToEpoch();
-			var idParametres = $"IntegratedTest-Persisted-{id}";
+        [Test]
+        public void CheckTransactionUpdatedItem()
+        {
+            var id = DateTime.Now.ToEpoch();
+            var idParameters = $"IntegratedTest-update-{id}";
 
-			using (var unitOfWork = entityRepository.GetUnitOfWork())
-			{
-				using (var transaction = unitOfWork.GetTransaction())
-				{
-					entityRepository.InsertOperation(unitOfWork, new DbSequenceHiLo { id_parametres = idParametres, intval = 1 });
+            entityRepository.Insert(new DbSequenceHiLo { IdParameters = idParameters, IntVal = 1 });
 
-					var value = entityRepository.FindFirstOperation<DbSequenceHiLo>(unitOfWork, x => x.id_parametres == idParametres);
-					Assert.That(value, Is.Not.Null);
+            using (var unitOfWork = entityRepository.GetUnitOfWork())
+            {
+                using var transaction = unitOfWork.GetTransaction();
+                var value = entityRepository.FindFirstOperation<DbSequenceHiLo>(unitOfWork, x => x.IdParameters == idParameters);
+                value.IntVal = 100;
+                entityRepository.UpdateOperation(unitOfWork, value);
 
-					transaction.Commit();
-				}
-			}
+                var updated = entityRepository.FindFirstOperation<DbSequenceHiLo>(unitOfWork, x => x.IdParameters == idParameters);
+                Assert.That(updated.IntVal, Is.EqualTo(100));
 
-			var result = entityRepository.FindFirst<DbSequenceHiLo>(x => x.id_parametres == idParametres);
+                transaction.Rollback();
+            }
+            var result = entityRepository.FindFirst<DbSequenceHiLo>(x => x.IdParameters == idParameters);
+            Assert.That(result.IntVal, Is.EqualTo(1));
+        }
 
-			Assert.That(result, Is.Not.Null);
-		}
+        [Test]
+        public void CheckTransactionUpdatedItemPersisted()
+        {
+            var id = DateTime.Now.ToEpoch();
+            var idParameters = $"IntegratedTestPersisted-update-{id}";
 
-		[Test]
-		public void CheckTransactionUpdatedItem()
-		{
-			var id = DateTime.Now.ToEpoch();
-			var idParametres = $"IntegratedTest-update-{id}";
+            entityRepository.Insert(new DbSequenceHiLo { IdParameters = idParameters, IntVal = 1 });
 
-			entityRepository.Insert(new DbSequenceHiLo { id_parametres = idParametres, intval = 1 });
+            using (var unitOfWork = entityRepository.GetUnitOfWork())
+            {
+                using var transaction = unitOfWork.GetTransaction();
+                var value = entityRepository.FindFirstOperation<DbSequenceHiLo>(unitOfWork, x => x.IdParameters == idParameters);
+                value.IntVal = 100;
+                entityRepository.UpdateOperation(unitOfWork, value);
 
-			using (var unitOfWork = entityRepository.GetUnitOfWork())
-			{
-				using (var transaction = unitOfWork.GetTransaction())
-				{
-					var value = entityRepository.FindFirstOperation<DbSequenceHiLo>(unitOfWork, x => x.id_parametres == idParametres);
-					value.intval = 100;
-					entityRepository.UpdateOperation(unitOfWork, value);
+                var updated = entityRepository.FindFirstOperation<DbSequenceHiLo>(unitOfWork, x => x.IdParameters == idParameters);
+                Assert.That(updated.IntVal, Is.EqualTo(100));
 
-					var updated = entityRepository.FindFirstOperation<DbSequenceHiLo>(unitOfWork, x => x.id_parametres == idParametres);
-					Assert.That(updated.intval, Is.EqualTo(100));
+                transaction.Commit();
+            }
 
-					transaction.Rollback();
-				}
-			}
-			
+            var result = entityRepository.FindFirst<DbSequenceHiLo>(x => x.IdParameters == idParameters);
+            Assert.That(result.IntVal, Is.EqualTo(100));
+        }
 
-			var result = entityRepository.FindFirst<DbSequenceHiLo>(x => x.id_parametres == idParametres);
+        [Test]
+        public void CheckTransactionDeletedItem()
+        {
+            var id = DateTime.Now.ToEpoch();
+            var idParameters = $"IntegratedTest-delete-{id}";
 
-			Assert.That(result.intval, Is.EqualTo(1));
-		}
+            entityRepository.Insert(new DbSequenceHiLo { IdParameters = idParameters, IntVal = 1 });
 
-		[Test]
-		public void CheckTransactionUpdatedItemPersisted()
-		{
-			var id = DateTime.Now.ToEpoch();
-			var idParametres = $"IntegratedTestPersisted-update-{id}";
+            using (var unitOfWork = entityRepository.GetUnitOfWork())
+            {
+                using var transaction = unitOfWork.GetTransaction();
+                var value = entityRepository.FindFirstOperation<DbSequenceHiLo>(unitOfWork, x => x.IdParameters == idParameters);
+                value.IntVal = 100;
+                entityRepository.DeleteOperation(unitOfWork, value);
 
-			entityRepository.Insert(new DbSequenceHiLo { id_parametres = idParametres, intval = 1 });
+                var updated = entityRepository.FindFirstOperation<DbSequenceHiLo>(unitOfWork, x => x.IdParameters == idParameters);
+                Assert.That(updated, Is.Null);
 
-			using (var unitOfWork = entityRepository.GetUnitOfWork())
-			{
-				using (var transaction = unitOfWork.GetTransaction())
-				{
-					var value = entityRepository.FindFirstOperation<DbSequenceHiLo>(unitOfWork, x => x.id_parametres == idParametres);
-					value.intval = 100;
-					entityRepository.UpdateOperation(unitOfWork, value);
+                transaction.Rollback();
+            }
+            var result = entityRepository.FindFirst<DbSequenceHiLo>(x => x.IdParameters == idParameters);
+            Assert.That(result.IntVal, Is.EqualTo(1));
+        }
 
-					var updated = entityRepository.FindFirstOperation<DbSequenceHiLo>(unitOfWork, x => x.id_parametres == idParametres);
-					Assert.That(updated.intval, Is.EqualTo(100));
+        [Test]
+        public void CheckTransactionDeletedItemPersisted()
+        {
+            var id = DateTime.Now.ToEpoch();
+            var idParameters = $"IntegratedTestPersisted-delete-{id}";
 
-					transaction.Commit();
-				}
-			}
+            entityRepository.Insert(new DbSequenceHiLo { IdParameters = idParameters, IntVal = 1 });
 
-			var result = entityRepository.FindFirst<DbSequenceHiLo>(x => x.id_parametres == idParametres);
+            using (var unitOfWork = entityRepository.GetUnitOfWork())
+            {
+                using var transaction = unitOfWork.GetTransaction();
+                var value = entityRepository.FindFirstOperation<DbSequenceHiLo>(unitOfWork, x => x.IdParameters == idParameters);
+                value.IntVal = 100;
+                entityRepository.DeleteOperation(unitOfWork, value);
 
-			Assert.That(result.intval, Is.EqualTo(100));
-		}
+                var updated = entityRepository.FindFirstOperation<DbSequenceHiLo>(unitOfWork, x => x.IdParameters == idParameters);
+                Assert.That(updated, Is.Null);
 
-		[Test]
-		public void CheckTransactionDeletedItem()
-		{
-			var id = DateTime.Now.ToEpoch();
-			var idParametres = $"IntegratedTest-delete-{id}";
+                transaction.Commit();
+            }
 
-			entityRepository.Insert(new DbSequenceHiLo { id_parametres = idParametres, intval = 1 });
+            var result = entityRepository.FindFirst<DbSequenceHiLo>(x => x.IdParameters == idParameters);
+            Assert.That(result, Is.Null);
+        }
+    }
 
-			using (var unitOfWork = entityRepository.GetUnitOfWork())
-			{
-				using (var transaction = unitOfWork.GetTransaction())
-				{
-					var value = entityRepository.FindFirstOperation<DbSequenceHiLo>(unitOfWork, x => x.id_parametres == idParametres);
-					value.intval = 100;
-					entityRepository.DeleteOperation(unitOfWork, value);
+    public class IntegratedTestContextFactory : ContextFactory<BaseDbContext>
+    {
+        private bool reUseContext = false;
+        private BaseDbContext context = null;
 
-					var updated = entityRepository.FindFirstOperation<DbSequenceHiLo>(unitOfWork, x => x.id_parametres == idParametres);
-					Assert.That(updated, Is.Null);
+        public override BaseDbContext CreateContext(DbContextOptions<BaseDbContext> options)
+        {
+            if (reUseContext == false)
+            {
+                return new BaseDbContext(options);
+            }
+            if (context != null)
+            {
+                return context;
+            }
+            context = new BaseDbContext(options);
+            return context;
+        }
 
-					transaction.Rollback();
-				}
-			}
-
-
-			var result = entityRepository.FindFirst<DbSequenceHiLo>(x => x.id_parametres == idParametres);
-
-			Assert.That(result.intval, Is.EqualTo(1));
-		}
-
-		[Test]
-		public void CheckTransactionDeletedItemPersisted()
-		{
-			var id = DateTime.Now.ToEpoch();
-			var idParametres = $"IntegratedTestPersisted-delete-{id}";
-
-			entityRepository.Insert(new DbSequenceHiLo { id_parametres = idParametres, intval = 1 });
-
-			using (var unitOfWork = entityRepository.GetUnitOfWork())
-			{
-				using (var transaction = unitOfWork.GetTransaction())
-				{
-					var value = entityRepository.FindFirstOperation<DbSequenceHiLo>(unitOfWork, x => x.id_parametres == idParametres);
-					value.intval = 100;
-					entityRepository.DeleteOperation(unitOfWork, value);
-
-					var updated = entityRepository.FindFirstOperation<DbSequenceHiLo>(unitOfWork, x => x.id_parametres == idParametres);
-					Assert.That(updated, Is.Null);
-
-					transaction.Commit();
-				}
-			}
-
-			var result = entityRepository.FindFirst<DbSequenceHiLo>(x => x.id_parametres == idParametres);
-			Assert.That(result, Is.Null);
-		}
-	}
-
-	public class IntegratedTestContextFactory : ContextFactory<BaseDbContext>
-	{
-		private bool reUseContext = false;
-		private BaseDbContext context = null;
-
-		public override BaseDbContext CreateContext(DbContextOptions<BaseDbContext> options)
-		{
-			if (reUseContext == false)
-			{
-				return new BaseDbContext(options);
-			}
-
-			if (context != null)
-			{
-				return context;
-			}
-			context = new BaseDbContext(options);
-			return context;
-		}
-
-		public void InitContextUsage(bool reUseContext)
-		{
-			this.reUseContext = reUseContext;
-		}
-	}
+        public void InitContextUsage(bool reUseContext)
+        {
+            this.reUseContext = reUseContext;
+        }
+    }
 }

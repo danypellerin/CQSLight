@@ -1,14 +1,14 @@
-﻿using System;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using PGMS.Data.Services;
 using PGMS.DataProvider.EFCore.Contexts;
+using System;
 
 namespace PGMS.DataProvider.EFCore.Services
 {
     public class UnitOfWork<T> : IUnitOfWork where T : BaseDbContext
     {
-        private T context;
+        private readonly T context;
 
         public UnitOfWork(string connectionString, ContextFactory<T> factory)
         {
@@ -17,37 +17,32 @@ namespace PGMS.DataProvider.EFCore.Services
 
         public void ExecuteInTransaction(Action<IUnitOfWork> action)
         {
-            using (var transaction = this.GetTransaction())
+            using var transaction = this.GetTransaction();
+            try
             {
-                try
-                {
-                    action.Invoke(this);
-                    context.SaveChanges();
-
-                    transaction.Commit();
-                }
-                catch (Exception)
-                {
-                    transaction.Rollback();
-                    throw;
-                }
-                
+                action.Invoke(this);
+                context.SaveChanges();
+                transaction.Commit();
+            }
+            catch (Exception)
+            {
+                transaction.Rollback();
+                throw;
             }
         }
-
 
         private bool disposed = false;
 
         protected virtual void Dispose(bool disposing)
         {
-            if (!this.disposed)
+            if (!disposed)
             {
                 //if (disposing)
                 //{
                 //    context.Dispose();
                 //}
             }
-            this.disposed = true;
+            disposed = true;
         }
 
         public DbSet<TEntity> GetDbSet<TEntity>() where TEntity : class
@@ -69,7 +64,7 @@ namespace PGMS.DataProvider.EFCore.Services
         public IUnitOfWorkTransaction GetTransaction()
         {
             return new DbTransaction(context.Database.BeginTransaction());
-        }       
+        }
 
         public IDbContext GetDbContext()
         {
@@ -86,12 +81,10 @@ namespace PGMS.DataProvider.EFCore.Services
             this.transaction = transaction;
         }
 
-
         public void Commit()
         {
             transaction.Commit();
         }
-
 
         public void Rollback()
         {
